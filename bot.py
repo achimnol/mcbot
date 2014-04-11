@@ -72,9 +72,12 @@ def safeexec(to, f, args=(), kwargs=None, callback=None):
 
 LIST_FLAG = False
 class Handler(object):
+
     LOG_REX = re.compile(br'^\[\d\d:\d\d:\d\d\] \[Server thread\/([A-Z]+)\]\: (.*)$') 
+    AUTH_REX = re.compile(br'^\[\d\d:\d\d:\d\d\] \[User Authenticator #\d+\/([A-Z]+)\]\: (.*)$')
     IGN_REX = re.compile(br'^(?:\d+ recipes|\d+ achievements|Closing listening thread)$')
     EXC_REX = re.compile(br'^(?:[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+: .*|\tat .*)$')
+
     LIST_HEADER_REX = re.compile(r'^There are (\d+)/\d+ players online:$')
     LOGIN_REX = re.compile(r'^([^\[]+)\[[^/]*/(.+?):\d+\] logged in with entity id (\d+) at \((-?\d+\.\d+), (-?\d+\.\d+), (-?\d+\.\d+)\)$')
     LOGOUT_REX = re.compile(r'^([^ ]+) lost connection: (.*)$')
@@ -82,6 +85,7 @@ class Handler(object):
     SPUBMSG_REX = re.compile(r'^\[Server\] (.*)$')
     SPRIVMSG_REX = re.compile(r'^You whisper to ([^:]+): (.*)$')
     DEATH_REX = re.compile(r'^([^\[ ]+) (.+)$')
+    UIDMAP_REX = re.compile(r'^UUID of player ([^ ]+) is ([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$')
 
     def on_info(self, msg): pass
     def on_warning(self, msg): pass
@@ -94,6 +98,7 @@ class Handler(object):
     def on_pubmsg(self, nick, text): pass
     def on_spubmsg(self, text): pass
     def on_sprivmsg(self, target, text): pass
+    def on_uidmap(self, nick, uuid): pass
 
     def on_log(self, level, msg):
         if level == 'INFO':
@@ -129,9 +134,19 @@ class Handler(object):
         elif level == 'WARNING':
             return self.on_warning(msg)
 
+    def on_auth(self, level, msg):
+        if level == 'INFO':
+            m = self.UIDMAP_REX.search(msg)
+            if m:
+                return self.on_uidmap(m.group(1), m.group(2) or self.on_info(msg))
+        elif level == 'WARNING':
+            return self.on_warning(msg)
+
     def on_line(self, line):
         m = self.LOG_REX.search(line)
         if m: return self.on_log(m.group(1).decode('ascii'), m.group(2).decode('utf8', 'replace'))
+        m = self.AUTH_REX.search(line)
+        if m: return self.on_auth(m.group(1).decode('ascii'), m.group(2).decode('utf8', 'replace'))
         if self.EXC_REX.search(line): return self.on_exception(line)
         if self.IGN_REX.search(line): return True
 

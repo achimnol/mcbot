@@ -322,6 +322,15 @@ class BotHandler(bot.Handler):
         else:
             say('*** %s님이 마인크래프트에서 나가셨습니다.' % (to_ircnick(mcid) or mcid))
 
+    def on_uidmap(self, mcid, mcuuid):
+        # TODO: implement DB migration
+        bot.send_to_mc('tellraw', mcid, {
+            'text': "NOTE: Your Minecraft UUID is {0}.".format(mcuuid),
+            'color': 'blue',
+        })
+        say('*** {0}님의 Minecraft UUID는 {1}입니다.'.format(mcid, mcuuid))
+        return True
+
     def on_pubmsg(self, mcid, text):
         print('[CHAT]', '<%s>' % mcid, text)
 
